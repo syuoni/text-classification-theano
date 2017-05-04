@@ -38,12 +38,12 @@ if __name__ == '__main__':
     rng = np.random.RandomState(1224)
     th_rng = RandomStreams(1226)
 
-#    model_save_fn = 'model-res\\lstm.pkl'
-#    model = LSTMModel(voc_dim, class_dim, rng, th_rng, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling='max')
+    model_save_fn = 'model-res\\lstm.pkl'
+    model = LSTMModel(voc_dim, class_dim, rng, th_rng, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling='max')
 #    model_save_fn = 'model-res\\rnn.pkl'
 #    model = RNNModel(voc_dim, class_dim, rng, th_rng, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling='max')
-    model_save_fn = 'model-res\\cnn.pkl'
-    model = CNNModel(voc_dim, class_dim, batch_size, conv_size, rng, th_rng, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling='max')
+#    model_save_fn = 'model-res\\cnn.pkl'
+#    model = CNNModel(voc_dim, class_dim, batch_size, conv_size, rng, th_rng, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling='max')
     
     
     x, mask, y, batch_idx_seq, use_noise = model.x, model.mask, model.y, model.batch_idx_seq, model.use_noise
