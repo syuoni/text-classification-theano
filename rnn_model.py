@@ -1,23 +1,28 @@
 import numpy as np
+import pickle
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
 from utils import th_floatX
+from corpus import Corpus
 from emb_layer import EmbLayer
 from rnn_layer import RNNLayer
 from pooling_layer import MeanPoolingLayer, MaxPoolingLayer
 from dropout_layer import DropOutLayer
 from hidden_layer import HiddenLayer
 from updates import ada_updates
-from lstm_model import trunc_inputs_mask
 
 
 class RNNModel(object):
-    def __init__(self, voc_dim, class_dim, rng=None, th_rng=None, 
-                 n_hidden=128, n_emb=150, maxlen=150, pooling='mean', load_from=None):    
-        assert pooling in ['mean', 'max']
-
+    def __init__(self, corpus, n_emb, n_hidden, pooling, rng=None, th_rng=None,  
+                 load_from=None, gensim_w2v=None):
+        self.corpus = corpus        
+        self.n_emb = n_emb
+        self.n_hidden = n_hidden
+        self.pooling = pooling
+        assert pooling in ('mean', 'max')
+        
         if rng is None:
             rng = np.random.RandomState(1226)
         if th_rng is None:
@@ -28,28 +33,29 @@ class RNNModel(object):
         mask = T.matrix('mask', dtype=theano.config.floatX)
         y = T.vector('y', dtype='int32')
         batch_idx_seq = T.vector('index', dtype='int32')
-        use_noise = theano.shared(th_floatX(0.))
-        
+        use_noise = theano.shared(th_floatX(0.))        
         self.x, self.mask, self.y, self.batch_idx_seq, self.use_noise = x, mask, y, batch_idx_seq, use_noise
         
         # TRANSPOSE THE AXIS!
         trans_x, trans_mask = x.T, mask.T
         # trancate the useless data
-        trunc_x, trunc_mask = trunc_inputs_mask(trans_x, trans_mask)
+        trunc_x, trunc_mask = RNNModel.trunc_inputs_mask(trans_x, trans_mask)
         n_steps, n_samples = trunc_x.shape
         
+        # list of model layers
         model_layers = []
-        model_layers.append(EmbLayer(rng, trunc_x, voc_dim, n_emb, load_from=load_from))
-        model_layers.append(RNNLayer(rng, model_layers[-1].outputs, trunc_mask, n_emb, n_hidden, load_from=load_from))
-        # pooling layer
+        model_layers.append(EmbLayer(trunc_x, load_from=load_from, 
+                                     rand_init_params=(rng, (corpus.dic.size, n_emb)), 
+                                     gensim_w2v=gensim_w2v, dic=corpus.dic))
+        model_layers.append(RNNLayer(model_layers[-1].outputs, trunc_mask, load_from=load_from, 
+                                     rand_init_params=(rng, (n_emb, n_hidden))))
         if pooling == 'mean':
             model_layers.append(MeanPoolingLayer(model_layers[-1].outputs, trunc_mask))
         else:
-            model_layers.append(MaxPoolingLayer(model_layers[-1].outputs))
-        # drop-out layer
+            model_layers.append(MaxPoolingLayer(model_layers[-1].outputs, trunc_mask))
         model_layers.append(DropOutLayer(model_layers[-1].outputs, use_noise, th_rng))
-        model_layers.append(HiddenLayer(rng, model_layers[-1].outputs, n_hidden, class_dim, activation=T.nnet.softmax, load_from=load_from))
-        
+        model_layers.append(HiddenLayer(model_layers[-1].outputs, activation=T.nnet.softmax, load_from=load_from,
+                                        rand_init_params=(rng, (n_hidden, corpus.n_type))))
         self.model_layers = model_layers
         
         model_params = []
@@ -66,14 +72,44 @@ class RNNModel(object):
         #f_pred = theano.function([x, mask], pred, name='f_pred')
         #f_error = theano.function([x, mask, y], T.mean(T.neq(pred, y)), name='f_error')
         #f_cost = theano.function([x, mask, y], cost, name='f_cost')
-        self.predict = theano.function(inputs =[x, mask], outputs=pred)
+        self.predict = theano.function(inputs=[x, mask], outputs=pred)
         
         grads = T.grad(cost, model_params)
         self.gr_updates, self.gr_sqr_updates, self.dp_sqr_updates, self.param_updates = ada_updates(model_params, grads)
+    
+    def predict_sent(self, sent):
+        idx_seq = self.corpus.dic.sent2idx_seq(sent)
         
+        x = np.array(idx_seq)[None, :]
+        mask = np.ones_like(x, dtype=theano.config.floatX)
+        return self.predict(x, mask)[0]
+    
+    @staticmethod
+    def trunc_inputs_mask(inputs, mask):
+        '''keep only the valid steps
+        '''
+        valid_n_steps = T.cast(T.max(T.sum(mask, axis=0)), 'int32')
+        trunc_inputs = inputs[:valid_n_steps]
+        trunc_mask = mask[:valid_n_steps]
+        return trunc_inputs, trunc_mask
         
-    def save(self, model_fn='rnn\\rnn.pkl'):
-        with open(model_fn, 'wb') as f:
+    def save(self, model_fn):
+        self.corpus.save(model_fn+'.corpus')
+        # do not save rng and th_rng
+        with open(model_fn+'.rnn', 'wb') as f:
+            pickle.dump(self.n_emb, f)
+            pickle.dump(self.n_hidden, f)     
+            pickle.dump(self.pooling, f)
             for layer in self.model_layers:
                 layer.save(f)
+                
+    @staticmethod
+    def load(model_fn):
+        corpus = Corpus.load_from_file(model_fn+'.corpus')        
+        with open(model_fn+'.rnn', 'rb') as f:
+            n_emb = pickle.load(f)
+            n_hidden = pickle.load(f)            
+            pooling = pickle.load(f)
+            rnn_model = RNNModel(corpus, n_emb, n_hidden, pooling, load_from=f)
+        return rnn_model
     

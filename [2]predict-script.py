@@ -1,59 +1,46 @@
 import numpy as np
 import theano
 
-from imdb import Dictionary, load_data
 from lstm_model import LSTMModel
 from rnn_model import RNNModel
 from cnn_model import CNNModel
+from utils import get_minibatches_idx
 
-n_hidden = 128
-n_emb = 128
-maxlen = 100
-batch_size = 32
-conv_size = 5
+#pooling_type = 'mean'
+pooling_type = 'max'
+model_type = 'lstm'
+#model_type = 'rnn'
+#model_type = 'cnn'
+model_save_fn = r'model-res\%s-%s' % (model_type, pooling_type)
+model_save_fn = model_save_fn + '-with-w2v'
 
-(train_x, train_mask, train_y), (valid_x, valid_mask, valid_y), (test_x, test_mask, test_y) = load_data('imdb\\imdb.pkl', maxlen=maxlen, valid_protion=0.1)
-n_train, n_valid, n_test = len(train_x), len(valid_x), len(test_x)
-voc_dim = max(np.max(train_x), np.max(valid_x), np.max(test_x)) + 1
-class_dim = np.max(train_y) + 1
+if model_type == 'lstm':
+    model = LSTMModel.load(model_save_fn)
+elif model_type == 'rnn':
+    model = RNNModel.load(model_save_fn)
+elif model_type == 'cnn':
+    model = CNNModel.load(model_save_fn)
+
+(train_x, train_mask, train_y), (valid_x, valid_mask, valid_y), (test_x, test_mask, test_y) = model.corpus.train_valid_test()
+batch_idx_seq_list = get_minibatches_idx(len(test_x), 32, keep_tail=False)
+
+# test for graph
+#f = theano.function(inputs=[model.x, model.mask], outputs=model.model_layers[0].outputs)
+#f(test_x[:10], test_mask[:10])
+
+print('error rate: %f %%' % (100 * np.mean([np.mean(model.predict(test_x[batch_idx_seq], test_mask[batch_idx_seq]) != test_y[batch_idx_seq]) for batch_idx_seq in batch_idx_seq_list])))
+
+print(model.predict_sent("i like it."))
+print(model.predict_sent("i don't like it."))
+print(model.predict_sent("it is interesting."))
+print(model.predict_sent("it isn't interesting."))
 
 
-class Predictor(object):
-    def __init__(self, model_save_fn, model_type, pooling_type, dic_fn='imdb.dict.pkl.gz'):
-        if model_type == 'lstm':
-            with open(model_save_fn, 'rb') as f:
-                self.model = LSTMModel(voc_dim, class_dim, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling=pooling_type, load_from=f)
-        elif model_type == 'rnn':
-            with open(model_save_fn, 'rb') as f:
-                self.model = RNNModel(voc_dim, class_dim, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling=pooling_type, load_from=f)
-        elif model_type == 'cnn':
-            with open(model_save_fn, 'rb') as f:
-                self.model = CNNModel(voc_dim, class_dim, batch_size, conv_size, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling=pooling_type, load_from=f)
-        else:
-            raise Exception('Invalid model type!', model_type)
-            
-        self.dic = Dictionary(dic_fn)
-        
-    def predict(self, sen):
-        sen = sen.lower().split()
-        idx_seq = self.dic.sen2idx_seq(sen)
-        
-        x = np.array(idx_seq)[None, :]
-        mask = np.ones_like(x, dtype=theano.config.floatX)
-        return self.model.predict(x, mask)[0]
-
-predictor = Predictor(model_save_fn='model-res\\lstm-mean.pkl', model_type='lstm', pooling_type='mean', dic_fn='imdb\\imdb.dict.pkl.gz')
-model = predictor.model
-
-#k = 10
-#print(model.predict(train_x[:k], train_mask[:k]))
-#print(train_y[:k])
-
-while True:
-    inputs = input('Input: ')
-    if inputs == 'exit':
-        break
-    else:
-        outputs = 'positive!' if predictor.predict(inputs) == 1 else 'negative!'
-        print('Result: %s' % outputs)
+#while True:
+#    inputs = input('Input: ')
+#    if inputs == 'exit':
+#        break
+#    else:
+#        outputs = 'positive!' if predictor.predict(inputs) == 1 else 'negative!'
+#        print('Result: %s' % outputs)
     

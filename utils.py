@@ -1,7 +1,6 @@
 import numpy as np
 import theano
 
-
 def th_floatX(data):
     return np.asarray(data, dtype=theano.config.floatX)
 
@@ -10,12 +9,15 @@ def rand_matrix(rng, lim, shape, dtype=theano.config.floatX):
     return np.asarray(rng.uniform(low=-lim, high=lim, size=shape), dtype=dtype)
 
 def normalize_matrix(matrix):
-    return matrix / (np.sum(matrix**2, axis=1)**0.5)[:, None]
+    return matrix / np.sum(matrix**2, axis=1, keepdims=True)**0.5
 
-def get_minibatches_idx(n, batch_size, shuffle=False, keep_tail=True):
+def get_minibatches_idx(n, batch_size, shuffle=False, rng=None, keep_tail=True):
     idx_seq = np.arange(n)
     if shuffle:
-        np.random.shuffle(idx_seq)
+        if rng is not None:
+            rng.shuffle(idx_seq)
+        else:
+            np.random.shuffle(idx_seq)
     
     n_batch = n // batch_size
     if n % batch_size > 0:

@@ -3,8 +3,9 @@ import numpy as np
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
+from gensim.models import Word2Vec
 
-from imdb import load_data
+from corpus import Corpus
 from lstm_model import LSTMModel
 from rnn_model import RNNModel
 from cnn_model import CNNModel
@@ -12,16 +13,15 @@ from utils import get_minibatches_idx
 
 
 if __name__ == '__main__':
+    #TODO: cannot repeat results with same random-seed specified?
     n_hidden = 128
     n_emb = 128
-    maxlen = 100
     batch_size = 32
     conv_size = 5
     
-    (train_x, train_mask, train_y), (valid_x, valid_mask, valid_y), (test_x, test_mask, test_y) = load_data('imdb\\imdb.pkl', maxlen=maxlen, valid_protion=0.1)
+    corpus = Corpus.load_from_file(r'imdb\imdb-prepared.pkl')
+    (train_x, train_mask, train_y), (valid_x, valid_mask, valid_y), (test_x, test_mask, test_y) = corpus.train_valid_test()
     n_train, n_valid, n_test = len(train_x), len(valid_x), len(test_x)
-    voc_dim = max(np.max(train_x), np.max(valid_x), np.max(test_x)) + 1
-    class_dim = np.max(train_y) + 1
     
     train_x = theano.shared(train_x)
     train_mask = theano.shared(train_mask)
@@ -33,27 +33,32 @@ if __name__ == '__main__':
     test_mask = theano.shared(test_mask)
     test_y = theano.shared(test_y)
     
-    
     rng = np.random.RandomState(1224)
     th_rng = RandomStreams(1226)
     
-    # specify model and pooling type!
-#    pooling_type = 'mean'
-    pooling_type = 'max'
-    model_type = 'lstm'
+    pooling_type = 'mean'
+#    pooling_type = 'max'
+#    model_type = 'lstm'
 #    model_type = 'rnn'
-#    model_type = 'cnn'
+    model_type = 'cnn'
+    use_w2v = True
+    if use_w2v is True:
+        print('Loading word2vec model...')
+        gensim_w2v = Word2Vec.load(r'w2v\enwiki.w2v')
+    else:
+        gensim_w2v = None
     if model_type == 'lstm':
-        model = LSTMModel(voc_dim, class_dim, rng, th_rng, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling=pooling_type)
+        model = LSTMModel(corpus, n_emb, n_hidden, pooling_type, rng=rng, th_rng=th_rng, gensim_w2v=gensim_w2v)
     elif model_type == 'rnn':
-        model = RNNModel(voc_dim, class_dim, rng, th_rng, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling=pooling_type)
+        model = RNNModel(corpus, n_emb, n_hidden, pooling_type, rng=rng, th_rng=th_rng, gensim_w2v=gensim_w2v)
     elif model_type == 'cnn':
-        model = CNNModel(voc_dim, class_dim, batch_size, conv_size, rng, th_rng, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen, pooling=pooling_type)
+        model = CNNModel(corpus, n_emb, n_hidden, batch_size, conv_size, pooling_type, rng=rng, th_rng=th_rng, gensim_w2v=gensim_w2v)
     else:
         raise Exception('Invalid model type!', model_type)
     
-    model_save_fn = 'model-res\\%s-%s.pkl' % (model_type, pooling_type)
-    
+    model_save_fn = r'model-res\%s-%s' % (model_type, pooling_type)
+    if use_w2v is True:
+        model_save_fn = model_save_fn + '-with-w2v'
     
     x, mask, y, batch_idx_seq, use_noise = model.x, model.mask, model.y, model.batch_idx_seq, model.use_noise
     pred, cost = model.pred, model.cost
@@ -98,8 +103,7 @@ if __name__ == '__main__':
     
     train_idx_batches = get_minibatches_idx(n_train, batch_size, keep_tail=keep_tail)
     valid_idx_batches = get_minibatches_idx(n_valid, batch_size, keep_tail=keep_tail)
-    test_idx_batches  = get_minibatches_idx(n_test, batch_size, keep_tail=keep_tail)
-    
+    test_idx_batches  = get_minibatches_idx(n_test, batch_size, keep_tail=keep_tail)    
     
     # train the model
     patience = 5000
@@ -120,8 +124,8 @@ if __name__ == '__main__':
     while (epoch < max_epoch) and (not done_looping):
         epoch += 1
         
-        # Get new shuffled index for the training set.
-        for idx_batch in get_minibatches_idx(n_train, batch_size, shuffle=True, keep_tail=keep_tail):
+        # Get new shuffled index for the training set. use rng to make result keep same with specific random-seed
+        for idx_batch in get_minibatches_idx(n_train, batch_size, shuffle=True, rng=rng, keep_tail=keep_tail):
             uidx += 1
             use_noise.set_value(1.)
             

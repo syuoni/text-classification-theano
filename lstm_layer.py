@@ -5,18 +5,25 @@ import theano.tensor as T
 from utils import rand_matrix
 
 class LSTMLayer(object):
-    def __init__(self, rng, inputs, mask, n_in, n_out, load_from=None):
-        '''
+    def __init__(self, inputs, mask, load_from=None, rand_init_params=None):
+        '''rand_init_params: (rng, (n_in, n_out))
         n_in = emb_dim (* context window size)
         n_out = n_hidden
         '''
         self.inputs = inputs
         self.mask = mask
         
-        if load_from is None:
-            limT = (6/(n_in + n_out*2)) ** 0.5
-            limS = 4 * limT
+        if load_from is not None:
+            W_values = pickle.load(load_from)
+            U_values = pickle.load(load_from)
+            b_values = pickle.load(load_from)
             
+            n_out = W_values.shape[1] // 4
+        elif rand_init_params is not None:
+            rng, (n_in, n_out) = rand_init_params
+            
+            limT = (6/(n_in + n_out*2)) ** 0.5
+            limS = 4 * limT            
             # [Wi, Wf, Wo, Wc]
             W_values = rand_matrix(rng, limS, (n_in, 4*n_out))
             W_values[:, (3*n_out):(4*n_out)] /= 4
@@ -26,9 +33,7 @@ class LSTMLayer(object):
             # [bi, bf, bo, bc]
             b_values = np.zeros(4*n_out, dtype=theano.config.floatX)
         else:
-            W_values = pickle.load(load_from)
-            U_values = pickle.load(load_from)
-            b_values = pickle.load(load_from)
+            raise Exception('Invalid initial inputs!')
         
         self.W = theano.shared(value=W_values, name='lstm_W', borrow=True)
         self.U = theano.shared(value=U_values, name='lstm_U', borrow=True)
