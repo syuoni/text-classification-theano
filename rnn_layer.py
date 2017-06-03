@@ -5,24 +5,30 @@ import theano.tensor as T
 from utils import rand_matrix
 
 class RNNLayer(object):
-    def __init__(self, rng, inputs, mask, n_in, n_out, load_from=None):
-        '''
+    def __init__(self, inputs, mask, load_from=None, rand_init_params=None):
+        '''rand_init_params: (rng, (n_in, n_out))
         n_in = emb_dim (* context window size)
         n_out = n_hidden
         '''
         self.inputs = inputs
         self.mask = mask
         
-        if load_from is None:
-            limS = 4 * (6/(n_in + n_out)) ** 0.5            
+        if load_from is not None:
+            W_values = pickle.load(load_from)
+            U_values = pickle.load(load_from)
+            b_values = pickle.load(load_from)
+            
+            n_out = W_values.shape[1]
+        elif rand_init_params is not None:
+            rng, (n_in, n_out) = rand_init_params
+            
+            limS = 4 * (6/(n_in + n_out)) ** 0.5
             
             W_values = rand_matrix(rng, limS, (n_in, n_out))
             U_values = rand_matrix(rng, limS, (n_out, n_out))
             b_values = np.zeros(n_out, dtype=theano.config.floatX)
         else:
-            W_values = pickle.load(load_from)
-            U_values = pickle.load(load_from)
-            b_values = pickle.load(load_from)
+            raise Exception('Invalid initial inputs!')
         
         self.W = theano.shared(value=W_values, name='rnn_W', borrow=True)
         self.U = theano.shared(value=U_values, name='rnn_U', borrow=True)
@@ -53,6 +59,3 @@ class RNNLayer(object):
         pickle.dump(self.b.get_value(), save_to, protocol=pickle.HIGHEST_PROTOCOL)
         
         
-        
-
-

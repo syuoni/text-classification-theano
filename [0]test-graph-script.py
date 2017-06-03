@@ -1,9 +1,11 @@
 import numpy as np
+import pickle
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
+from gensim.models import Word2Vec
 
-from imdb import load_data
+from corpus import Corpus
 from rnn_model import RNNModel
 from cnn_model import CNNModel
 from conv_layer import ConvLayer
@@ -16,35 +18,36 @@ from utils import get_minibatches_idx
 if __name__ == '__main__':
     n_hidden = 128
     n_emb = 128
-    maxlen = 200
     batch_size = 32
     valid_batch_size = 64
     n_conv_stack = 120
     conv_size = 5
     
-    (train_x, train_mask, train_y), (valid_x, valid_mask, valid_y), (test_x, test_mask, test_y) = load_data('imdb\\imdb.pkl', maxlen=maxlen, valid_protion=0.1)
-    n_train, n_valid, n_test = len(train_x), len(valid_x), len(test_x)
-    voc_dim = max(np.max(train_x), np.max(valid_x), np.max(test_x)) + 1
-    class_dim = np.max(train_y) + 1
+    corpus = Corpus.load_from_file(r'imdb\imdb-prepared.pkl')
+    (train_x, train_mask, train_y), (valid_x, valid_mask, valid_y), (test_x, test_mask, test_y) = corpus.train_valid_test()
     
+    
+    n_train, n_valid, n_test = len(train_x), len(valid_x), len(test_x)
+    class_dim = np.max(train_y) + 1
     
     rng = np.random.RandomState(1224)
     th_rng = RandomStreams(1226)
     
+    gensim_w2v = Word2Vec.load(r'w2v\enwiki.w2v')
+    lstm = LSTMModel(corpus, n_emb=n_emb, n_hidden=n_hidden, pooling='max', gensim_w2v=gensim_w2v)
     
-    cnn = CNNModel(voc_dim, class_dim, batch_size, conv_size, rng, th_rng, n_hidden=n_hidden, n_emb=n_emb, maxlen=maxlen)
+    # test whether emb values are replaced by word2vec model results
+#    lstm_emb = lstm.model_layers[0]
+#    idx = 1001
+#    W_values = lstm_emb.W.get_value()
+#    vec = w2v.wv[corpus.dic._idx2word[idx]]
+#    W_values[idx]
+#    print(W_values[idx]/vec)
     
-    f = theano.function([cnn.x, cnn.mask, cnn.y], cnn.pred_prob, on_unused_input='ignore')
+    # test function compile
+    f = theano.function([lstm.x, lstm.mask, lstm.y], lstm.cost)
     batch_idx_seq = np.arange(batch_size)
     print(f(train_x[batch_idx_seq], train_mask[batch_idx_seq], train_y[batch_idx_seq]))
-    
-        
-    
-#    lstm = LSTMModel(voc_dim, class_dim, rng, th_rng)
-#    
-#    f = theano.function([lstm.x, lstm.mask], lstm.cost)
-#    batch_idx_seq = np.arange(batch_size)
-#    print(f(train_x[batch_idx_seq], train_mask[batch_idx_seq]))
     
 #    # x: (batch size, n_words/steps)
 #    x = T.matrix('x', dtype='int32')

@@ -7,11 +7,11 @@ from theano.tensor.nnet import conv
 from utils import rand_matrix
 
 class ConvLayer(object):
-    def __init__(self, rng, inputs, filter_shape, image_shape, load_from=None):
-        '''
+    def __init__(self, inputs, image_shape, load_from=None, rand_init_params=None):
+        '''rand_init_params: (rng, filter_shape)
         inputs: (batch size, stack size, n_words/steps, emb_dim)
         
-        filter_shape: (output stack size, input stack size, filter height, filter width)        
+        filter_shape: (output stack size, input stack size, filter height, filter width)      
             output stack size = ?
             input stack size = 1
             filter height = ?
@@ -31,7 +31,13 @@ class ConvLayer(object):
         '''
         self.inputs = inputs
         
-        if load_from is None:
+        if load_from is not None:
+            W_values = pickle.load(load_from)
+            b_values = pickle.load(load_from)
+            
+            filter_shape = W_values.shape
+        elif rand_init_params is not None:
+            rng, filter_shape = rand_init_params
             fan_in = filter_shape[1] * filter_shape[2] * filter_shape[3]
             fan_out = filter_shape[0] * filter_shape[2] * filter_shape[3]
             limT = (6/(fan_in + fan_out)) ** 0.5
@@ -39,8 +45,7 @@ class ConvLayer(object):
             W_values = rand_matrix(rng, limT, filter_shape)
             b_values = np.zeros(filter_shape[0], dtype=theano.config.floatX)
         else:
-            W_values = pickle.load(load_from)
-            b_values = pickle.load(load_from)
+            raise Exception('Invalid initial inputs!')           
             
         self.W = theano.shared(value=W_values, name='conv_W', borrow=True)
         self.b = theano.shared(value=b_values, name='conv_b', borrow=True)
