@@ -5,7 +5,8 @@ This project implements RNN, LSTM and CNN for text sentiment classification, bas
 All models accept pre-trained word embedding inputs.  
 
 ## dataset
-We use Large Movie Review Dataset dataset (http://ai.stanford.edu/~amaas/data/sentiment/) as default dataset, and process it according to theano-tutorial, please refer http://deeplearning.net/tutorial/lstm.html.  
+We use [Large Movie Review Dataset](http://ai.stanford.edu/~amaas/data/sentiment/) (imdb) dataset as default dataset, and process it according to [theano-tutorial](http://deeplearning.net/tutorial/lstm.html).  
+
 You can change the training data by yourself, and refer the imdb data processing script (imdb-corpus-prepare-script.py) for data processing details. Alternatively, you can use the Corpus.build_corpus_with_dic method provided by corpus-module to build corpus and dictionary simultaneously.  
 
 ## test error rates of models (imdb dataset)
