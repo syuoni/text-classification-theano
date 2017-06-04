@@ -2,10 +2,11 @@
 The project homework for "Foundations of Machine Learning".  
 
 This project implements RNN, LSTM and CNN for text sentiment classification, based on Theano (0.8.2).  
-All models could use pre-trained embedding.  
+All models accept pre-trained word embedding inputs.  
 
-We use Large Movie Review Dataset dataset (http://ai.stanford.edu/~amaas/data/sentiment/) as default dataset, and process it according to theano-tutorial, please refer http://deeplearning.net/tutorial/lstm.html.  
-You can change the training data by yourself, and remenber to modify the data processing script (imdb-corpus-prepare-script.py) as well.  
+## dataset
+We use Large Movie Review Dataset dataset (http://ai.stanford.edu/~amaas/data/sentiment/) as default dataset, and process it according to theano-tutorial, please refer http://deeplearning.net/tutorial/lstm.html.  
+You can change the training data by yourself, and refer the imdb data processing script (imdb-corpus-prepare-script.py) for data processing details. Alternatively, you can use the Corpus.build_corpus_with_dic method provided by corpus-module to build corpus and dictionary simultaneously.  
 
 ## test error rates of models (imdb dataset)
 |model|specification|pre-trained word embedding|randomly initialized word embedding|
