@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 import pickle
 import theano
 from utils import rand_matrix, normalize_matrix
-
 
 class EmbLayer(object):
     def __init__(self, inputs, load_from=None, rand_init_params=None, gensim_w2v=None, dic=None):

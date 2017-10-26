@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import theano.tensor as T
 
 class MeanPoolingLayer(object):

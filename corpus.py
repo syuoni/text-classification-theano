@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import pandas as pd
 import theano
@@ -145,10 +146,12 @@ class Corpus(object):
             pickle.dump(new_data_mask_mtx, f)
             pickle.dump(new_data_y_vec, f)
         
+        
 if __name__ == '__main__':
 #    fn = r'imdb\imdb-prepared.pkl'
 #    corpus = Corpus.load_from_file(fn)
 #    corpus.save(r'imdb\imdb-resaved.pkl')
+    
     with open(r'weibo-hp\raw-corpus-relev_vs_norel.pkl', 'rb') as f:
         data_x = pickle.load(f)
         data_y = pickle.load(f)
