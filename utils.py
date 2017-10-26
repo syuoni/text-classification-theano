@@ -1,4 +1,6 @@
+# -*- coding: utf-8 -*-
 import numpy as np
+from scipy.stats import mode
 import theano
 
 def th_floatX(data):
@@ -12,7 +14,7 @@ def normalize_matrix(matrix):
     return matrix / np.sum(matrix**2, axis=1, keepdims=True)**0.5
 
 def get_minibatches_idx(n, batch_size, shuffle=False, rng=None, keep_tail=True):
-    idx_seq = np.arange(n)
+    idx_seq = np.arange(n, dtype='int32')
     if shuffle:
         if rng is not None:
             rng.shuffle(idx_seq)
@@ -31,4 +33,31 @@ def get_minibatches_idx(n, batch_size, shuffle=False, rng=None, keep_tail=True):
         del batches[-1]
         
     return batches
+
+
+class VotingClassifier(object):
+    def __init__(self, estimators, valid_ratio=0):
+        self.estimators = estimators
+        self.n_estimators = len(estimators)
+        self.valid_ratio = valid_ratio
+        self.valid_N = self.n_estimators * self.valid_ratio
+        
+    def predict(self, estimator_args):
+        sub_res = np.array([estimator.predict_func(*estimator_args) for estimator in self.estimators], 
+                           dtype=np.float32)
+        mode_res, count = mode(sub_res, axis=0)
+        mode_res, count = mode_res[0], count[0]
+        mode_res[count<self.valid_N] = np.nan
+        return mode_res
+
+    def predict_sent(self, sent):
+        sub_res = np.array([estimator.predict_sent(sent) for estimator in self.estimators], 
+                           dtype=np.float32)
+        mode_res, count = mode(sub_res, axis=0)
+        mode_res, count = mode_res[0], count[0]
+        if count < self.valid_N:
+            return np.nan
+        else:
+            return mode_res
+    
     

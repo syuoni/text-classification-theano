@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import pickle
 import theano
@@ -75,19 +76,16 @@ class CNNModel(object):
         for layer in model_layers:
             model_params += layer.params
             
-        pred_prob = model_layers[-1].outputs
-        pred = T.argmax(pred_prob, axis=1)
+        self.pred_prob = model_layers[-1].outputs
+        self.pred = T.argmax(self.pred_prob, axis=1)
         off = 1e-8
-        cost = -T.mean(T.log(pred_prob[T.arange(n_samples), y] + off))
-        self.pred_prob, self.pred, self.cost = pred_prob, pred, cost
+        self.cost = -T.mean(T.log(self.pred_prob[T.arange(n_samples), y] + off))
         
-        #f_pred_prob = theano.function([x, mask], pred_prob, name='f_pred_prob')
-        #f_pred = theano.function([x, mask], pred, name='f_pred')
-        #f_error = theano.function([x, mask, y], T.mean(T.neq(pred, y)), name='f_error')
-        #f_cost = theano.function([x, mask, y], cost, name='f_cost')
-        self.predict = theano.function(inputs =[x, mask], outputs=pred, on_unused_input='ignore')
+        # attributes with `func` suffix is compiled function
+        self.predict_func = theano.function(inputs=[x, mask], outputs=self.pred)
+        self.predict_prob_func = theano.function(inputs=[x, mask], outputs=self.pred_prob)
         
-        grads = T.grad(cost, model_params)
+        grads = T.grad(self.cost, model_params)
         self.gr_updates, self.gr_sqr_updates, self.dp_sqr_updates, self.param_updates = ada_updates(model_params, grads)
     
     def predict_sent(self, sent):
@@ -97,7 +95,7 @@ class CNNModel(object):
         x[0, 0:len(idx_seq)] = idx_seq        
         mask = np.zeros((self.batch_size, self.corpus.maxlen), dtype=theano.config.floatX)
         mask[0, 0:len(idx_seq)] = 1.
-        return self.predict(x, mask)[0]
+        return self.predict_func(x, mask)[0]
         
     def save(self, model_fn):
         self.corpus.save(model_fn+'.corpus')

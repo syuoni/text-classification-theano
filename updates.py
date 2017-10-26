@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import theano
 from utils import th_floatX
 
