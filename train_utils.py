@@ -79,7 +79,7 @@ def train_with_validation(train_set, valid_set, corpus,
     patience_increase = 2
     improvement_threshold = 0.995
     disp_freq = 20
-    validation_freq = 200
+    validation_freq = 100
     
     max_epoch = 500
     best_iter = 0

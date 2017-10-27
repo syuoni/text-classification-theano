@@ -10,11 +10,11 @@ We use [Large Movie Review Dataset](http://ai.stanford.edu/~amaas/data/sentiment
 You can change the training data by yourself, and refer the imdb data processing script (imdb-corpus-prepare-script.py) for data processing details. Alternatively, you can use the Corpus.build_corpus_with_dic method provided by corpus-module to build corpus and dictionary simultaneously.  
 
 ## test error rates of models (imdb dataset)
-|model|specification|ensemble CV|pre-trained word embedding|randomly initialized word embedding|
-|:---:|:-----------:|:---------:|:------------------------:|:---------------------------------:|
-|LSTM|max pooling|10.11%|10.45%|11.46%|
-|LSTM|mean pooling|9.60%|9.70%|10.83%|
-|RNN|max pooling|N/A|12.32%|13.28%|
-|RNN|mean pooling|N/A|11.49%|11.58%|
-|CNN|max pooling; conv_size=5|9.58%|10.63%|10.55%|
-|CNN|mean pooling; conv_size=5|11.04%|11.90%|11.98%|
+|model|pooling|ensemble CV (soft voting)|ensemble CV (hard voting)|pre-trained word embedding|randomly initialized word embedding|
+|:---:|:-----:|:-----------------------:|:-----------------------:|:------------------------:|:---------------------------------:|
+|LSTM |max    |10.10%|10.07%|10.45%|11.46%|
+|LSTM |mean   | 9.54%| 9.65%| 9.70%|10.83%|
+|RNN  |max    |   N/A|   N/A|12.32%|13.28%|
+|RNN  |mean   |   N/A|   N/A|11.49%|11.58%|
+|CNN  |max    | 9.52%| 9.62%|10.63%|10.55%|
+|CNN  |mean   |11.17%|11.25%|11.90%|11.98%|
