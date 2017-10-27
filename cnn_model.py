@@ -88,14 +88,17 @@ class CNNModel(object):
         grads = T.grad(self.cost, model_params)
         self.gr_updates, self.gr_sqr_updates, self.dp_sqr_updates, self.param_updates = ada_updates(model_params, grads)
     
-    def predict_sent(self, sent):
+    def predict_sent(self, sent, with_prob=False):
         idx_seq = self.corpus.dic.sent2idx_seq(sent)
         
-        x = np.zeros((self.batch_size, self.corpus.maxlen), dtype='int32')        
-        x[0, 0:len(idx_seq)] = idx_seq        
+        x = np.zeros((self.batch_size, self.corpus.maxlen), dtype='int32')
+        x[:, 0:len(idx_seq)] = idx_seq
         mask = np.zeros((self.batch_size, self.corpus.maxlen), dtype=theano.config.floatX)
-        mask[0, 0:len(idx_seq)] = 1.
-        return self.predict_func(x, mask)[0]
+        mask[:, 0:len(idx_seq)] = 1.
+        if with_prob is False:
+            return self.predict_func(x, mask)[0]
+        else:
+            return self.predict_prob_func(x, mask)[0]
         
     def save(self, model_fn):
         self.corpus.save(model_fn+'.corpus')

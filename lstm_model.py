@@ -76,12 +76,15 @@ class LSTMModel(object):
         grads = T.grad(self.cost, model_params)
         self.gr_updates, self.gr_sqr_updates, self.dp_sqr_updates, self.param_updates = ada_updates(model_params, grads)        
     
-    def predict_sent(self, sent):
+    def predict_sent(self, sent, with_prob=False):
         idx_seq = self.corpus.dic.sent2idx_seq(sent)
         
         x = np.array(idx_seq)[None, :]
         mask = np.ones_like(x, dtype=theano.config.floatX)
-        return self.predict_func(x, mask)[0]
+        if with_prob is False:
+            return self.predict_func(x, mask)[0]
+        else:
+            return self.predict_prob_func(x, mask)[0]
     
     @staticmethod
     def trunc_inputs_mask(inputs, mask):

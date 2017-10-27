@@ -36,28 +36,42 @@ def get_minibatches_idx(n, batch_size, shuffle=False, rng=None, keep_tail=True):
 
 
 class VotingClassifier(object):
-    def __init__(self, estimators, valid_ratio=0):
+    def __init__(self, estimators, voting='hard'):
         self.estimators = estimators
         self.n_estimators = len(estimators)
-        self.valid_ratio = valid_ratio
-        self.valid_N = self.n_estimators * self.valid_ratio
         
-    def predict(self, estimator_args):
-        sub_res = np.array([estimator.predict_func(*estimator_args) for estimator in self.estimators], 
-                           dtype=np.float32)
-        mode_res, count = mode(sub_res, axis=0)
-        mode_res, count = mode_res[0], count[0]
-        mode_res[count<self.valid_N] = np.nan
-        return mode_res
-
-    def predict_sent(self, sent):
-        sub_res = np.array([estimator.predict_sent(sent) for estimator in self.estimators], 
-                           dtype=np.float32)
-        mode_res, count = mode(sub_res, axis=0)
-        mode_res, count = mode_res[0], count[0]
-        if count < self.valid_N:
-            return np.nan
+        assert voting in ('hard', 'soft')
+        self.voting = voting
+        
+    def predict(self, estimator_args, with_prob=False):
+        if self.voting == 'hard':
+            # sub_res -> (estimator_dim, batch_dim)
+            sub_res = np.array([estimator.predict_func(*estimator_args) for estimator in self.estimators], 
+                               dtype=theano.config.floatX)
+            mode_res, count = mode(sub_res, axis=0)
+            return (mode_res[0], count[0]/self.n_estimators) if with_prob else mode_res[0]
         else:
-            return mode_res
-    
+            # sub_res -> (estimator_dim, batch_dim, target_dim)
+            sub_res = np.array([estimator.predict_prob_func(*estimator_args) for estimator in self.estimators], 
+                               dtype=theano.config.floatX)
+            sub_res = sub_res.mean(axis=0)
+            max_res = np.argmax(sub_res, axis=1)
+            mean_prob = sub_res[np.arange(sub_res.shape[0]), max_res]
+            return (max_res, mean_prob) if with_prob else max_res
+
+    def predict_sent(self, sent, with_prob=False):
+        if self.voting == 'hard':
+            # sub_res -> (estimator_dim, )
+            sub_res = np.array([estimator.predict_sent(sent) for estimator in self.estimators], 
+                               dtype=np.float32)
+            mode_res, count = mode(sub_res)
+            return (mode_res[0], count[0]/self.n_estimators) if with_prob else mode_res[0]
+        else:
+            # sub_res -> (estimator_dim, target_dim)
+            sub_res = np.array([estimator.predict_sent(sent, with_prob=True) for estimator in self.estimators], 
+                               dtype=np.float32)
+            sub_res = sub_res.mean(axis=0)
+            max_res = np.argmax(sub_res)
+            mean_prob = sub_res[max_res]
+            return (max_res, mean_prob) if with_prob else max_res
     
